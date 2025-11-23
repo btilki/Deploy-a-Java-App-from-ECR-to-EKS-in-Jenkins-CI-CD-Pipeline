@@ -1,10 +1,12 @@
-Deploy a Java App from ECR to EKS in Jenkins CI/CD Pipeline
+# Deploy a Java App from ECR to EKS in Jenkins CI/CD Pipeline
 
-1. Overview
+## 1. Overview
 
 This project demonstrates a complete CI/CD pipeline for a Java (Spring Boot) application using Jenkins, Docker, AWS Elastic Container Registry (ECR), and AWS Elastic Kubernetes Service (EKS).
 
-2. Key Technologies
+---
+
+## 2. Key Technologies
 
 - Java (Spring Boot, Maven)
 - Docker (for containerization)
@@ -13,62 +15,176 @@ This project demonstrates a complete CI/CD pipeline for a Java (Spring Boot) app
 - AWS EKS (for Kubernetes hosting)
 - Kubernetes (for deployment)
 
-3. Project Structure
+---
 
-3.1. Jenkinsfile
+## 3. Project Structure
+
+### 3.1. Jenkinsfile
 
 Defines the CI/CD pipeline:
-- Increment Version: Bumps the application version using Maven and appends the Jenkins build number for Docker image tagging.
-- Build App: Uses Maven to build and package the Java application.
-- Build Docker Image & Push to ECR:
-  - Builds a Docker image from the application.
-  - Authenticates using Jenkins credentials.
-  - Pushes the image to AWS ECR.
-- Deploy to EKS:
-  - Uses AWS credentials via Jenkins secrets.
-  - Templates and applies Kubernetes manifests for deployment (`deployment.yaml`, `service.yaml`) with `envsubst` for variable substitution.
-- Commit Version Update:
-  - Pushes the updated version information back to the GitLab repository using credentials.
 
-3.2. Dockerfile
+<details>
+<summary>Click to copy Jenkinsfile snippet</summary>
 
-Defines how to build the Docker image:
-- Uses Amazon Corretto 8 on Alpine Linux for the Java runtime.
-- Exposes port `8080`.
-- Copies the Maven-built JAR file into the image.
-- Sets the working directory to `/usr/app`.
-- Specifies the command to run the application using `java -jar`.
+```groovy
+pipeline {
+    agent any
+    environment {
+        AWS_ACCESS_KEY_ID     = credentials('jenkins_aws_access_key_id')
+        AWS_SECRET_ACCESS_KEY = credentials('jenkins-aws_secret_access_key')
+        ECR_REPO              = 'YOUR_AWS_ACCOUNT_ID.dkr.ecr.YOUR_REGION.amazonaws.com/YOUR_ECR_REPO'
+        VERSION_FILE          = 'pom.xml'
+    }
+    stages {
+        stage('Increment Version') {
+            steps {
+                // Bump version and append build number for Docker tag
+                sh 'mvn versions:set -DnewVersion=$(mvn help:evaluate -Dexpression=project.version -q -DforceStandardOutput | awk -F. \'{$NF+=1; OFS="."; print $0}\')-$BUILD_NUMBER'
+            }
+        }
+        stage('Build App') {
+            steps {
+                sh 'mvn clean package'
+            }
+        }
+        stage('Build Docker Image & Push to ECR') {
+            steps {
+                sh '''
+                    $(aws ecr get-login --no-include-email --region YOUR_REGION)
+                    docker build -t $ECR_REPO:$BUILD_NUMBER .
+                    docker push $ECR_REPO:$BUILD_NUMBER
+                '''
+            }
+        }
+        stage('Deploy to EKS') {
+            steps {
+                sh '''
+                    export IMAGE_TAG=$BUILD_NUMBER
+                    envsubst < kubernetes/deployment.yaml | kubectl apply -f -
+                    envsubst < kubernetes/service.yaml | kubectl apply -f -
+                '''
+            }
+        }
+        stage('Commit Version Update') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'gitlab-credentials', usernameVariable: 'GIT_USERNAME', passwordVariable: 'GIT_PASSWORD')]) {
+                    sh '''
+                        git config user.name "$GIT_USERNAME"
+                        git config user.email "your-email@example.com"
+                        git add $VERSION_FILE
+                        git commit -m "Incremented version to $BUILD_NUMBER"
+                        git push https://$GIT_USERNAME:$GIT_PASSWORD@gitlab.com/YOUR_NAMESPACE/YOUR_REPO.git HEAD:main
+                    '''
+                }
+            }
+        }
+    }
+}
+```
+</details>
 
-3.4. Kubernetes Manifests
+---
 
-Referenced in the pipeline (typically located in the `kubernetes/` directory):
-- deployment.yaml: Describes the application's deployment details, such as the number of replicas, the Docker image to use, exposed ports, and labels.
-- service.yaml: Defines how the application is exposed within the Kubernetes cluster, typically via a LoadBalancer on port 80 that forwards to the application's internal port 8080.
+### 3.2. Dockerfile
 
-4. Pipeline Flow
+<details>
+<summary>Click to copy Dockerfile</summary>
 
-1. Code Commit: Developers push code changes.
-2. Jenkins Trigger: Jenkins pipeline starts automatically.
-3. Build & Test: Application is built and tested.
-4. Dockerization: A Docker image is built and tagged based on the incremented version and build number.
-5. Push to ECR: Image is securely pushed to AWS ECR.
-6. Deploy to EKS: The application is deployed/updated on the Kubernetes cluster.
-7. Version Tracking: The new version is committed to the source repository.
+```dockerfile
+FROM amazoncorretto:8-alpine
+WORKDIR /usr/app
+COPY target/*.jar app.jar
+EXPOSE 8080
+CMD ["java", "-jar", "app.jar"]
+```
+</details>
 
-5. Security and Best Practices
+---
+
+### 3.4. Kubernetes Manifests
+
+#### deployment.yaml
+
+<details>
+<summary>Click to copy Kubernetes deployment manifest</summary>
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spring-boot-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: spring-boot-app
+  template:
+    metadata:
+      labels:
+        app: spring-boot-app
+    spec:
+      containers:
+      - name: spring-boot-app
+        image: ${ECR_REPO}:${IMAGE_TAG}
+        ports:
+        - containerPort: 8080
+```
+</details>
+
+#### service.yaml
+
+<details>
+<summary>Click to copy Kubernetes service manifest</summary>
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: spring-boot-app-service
+spec:
+  type: LoadBalancer
+  selector:
+    app: spring-boot-app
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
+```
+</details>
+
+---
+
+## 4. Pipeline Flow
+
+1. **Code Commit:** Developers push code changes.
+2. **Jenkins Trigger:** Jenkins pipeline starts automatically.
+3. **Build & Test:** Application is built and tested.
+4. **Dockerization:** A Docker image is built and tagged based on the incremented version and build number.
+5. **Push to ECR:** Image is securely pushed to AWS ECR.
+6. **Deploy to EKS:** The application is deployed/updated on the Kubernetes cluster.
+7. **Version Tracking:** The new version is committed to the source repository.
+
+---
+
+## 5. Security and Best Practices
 
 - All sensitive credentials (AWS, Docker/ECR, GitLab) are managed securely via Jenkins credentials.
 - The pipeline uses dynamic variable injection for image tags and Kubernetes manifests.
 - Amazon Corretto and Alpine Linux are used for a slim and secure runtime.
 
-6. Getting Started
+---
+
+## 6. Getting Started
 
 1. Clone the repository.
 2. Ensure your Jenkins instance is set up with the required credentials (`ecr-credentials`, `jenkins_aws_access_key_id`, `jenkins-aws_secret_access_key`, `gitlab-credentials`).
 3. Configure your EKS cluster and ECR repository.
 4. Push changes to invoke the Jenkins pipeline and trigger the CI/CD flow.
 
-Note: For the source code, Dockerfile, Jenkinsfile, and Kubernetes manifests, refer to their respective files in the repository.
+**Note: For the source code, Dockerfile, Jenkinsfile, and Kubernetes manifests, refer to their respective files in the repository.**
 
-License
+---
+
+## License
+
 MIT
