@@ -1,11 +1,13 @@
 apiVersion: v1
 kind: Service
 metadata:
+  # Service name must match the one used in deployment selector
   name: $APP_NAME
 spec:
   selector:
+    # The selector should match labels in your pod/deployment
     app: $APP_NAME
   ports:
     - protocol: TCP
-      port: 80
-      targetPort: 8080
+      port: 80        # Exposes port 80 of the service within the cluster
+      targetPort: 8080 # Forwards traffic to container port 8080
