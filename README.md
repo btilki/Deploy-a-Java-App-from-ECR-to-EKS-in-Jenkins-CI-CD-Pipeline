@@ -26,26 +26,42 @@ Defines the CI/CD pipeline:
 ```groovy
 pipeline {
     agent any
+
     environment {
+        // AWS credentials stored securely in Jenkins credentials store
         AWS_ACCESS_KEY_ID     = credentials('jenkins_aws_access_key_id')
         AWS_SECRET_ACCESS_KEY = credentials('jenkins-aws_secret_access_key')
+
+        // Amazon ECR repository URI (replace placeholders with actual values)
         ECR_REPO              = 'YOUR_AWS_ACCOUNT_ID.dkr.ecr.YOUR_REGION.amazonaws.com/YOUR_ECR_REPO'
+
+        // File used for versioning (Maven project)
         VERSION_FILE          = 'pom.xml'
     }
+
     stages {
+
         stage('Increment Version') {
             steps {
-                // Bump version and append build number for Docker tag
-                sh 'mvn versions:set -DnewVersion=$(mvn help:evaluate -Dexpression=project.version -q -DforceStandardOutput | awk -F. \'{$NF+=1; OFS="."; print $0}\')-$BUILD_NUMBER'
+                // Automatically increment the version stored in pom.xml
+                // Uses Maven Versions plugin to bump the last digit
+                // Appends Jenkins BUILD_NUMBER for unique Docker tagging
+                sh 'mvn versions:set -DnewVersion=$(mvn help:evaluate -Dexpression=project.version -q -DforceStandardOutput | awk -F. '\''{$NF+=1; OFS="."; print $0}'\'')-$BUILD_NUMBER'
             }
         }
+
         stage('Build App') {
             steps {
+                // Clean previous artifacts and package the application
                 sh 'mvn clean package'
             }
         }
+
         stage('Build Docker Image & Push to ECR') {
             steps {
+                // Authenticate Docker with ECR
+                // Build Docker image using BUILD_NUMBER as tag
+                // Push image to ECR repository
                 sh '''
                     $(aws ecr get-login --no-include-email --region YOUR_REGION)
                     docker build -t $ECR_REPO:$BUILD_NUMBER .
@@ -53,8 +69,12 @@ pipeline {
                 '''
             }
         }
+
         stage('Deploy to EKS') {
             steps {
+                // Export Docker image tag for use in Kubernetes manifests
+                // envsubst replaces environment variables in manifest templates
+                // Apply updated Deployment and Service to EKS cluster
                 sh '''
                     export IMAGE_TAG=$BUILD_NUMBER
                     envsubst < kubernetes/deployment.yaml | kubectl apply -f -
@@ -62,8 +82,10 @@ pipeline {
                 '''
             }
         }
+
         stage('Commit Version Update') {
             steps {
+                // Commit updated pom.xml back to Git repo using stored credentials
                 withCredentials([usernamePassword(credentialsId: 'gitlab-credentials', usernameVariable: 'GIT_USERNAME', passwordVariable: 'GIT_PASSWORD')]) {
                     sh '''
                         git config user.name "$GIT_USERNAME"
@@ -75,8 +97,10 @@ pipeline {
                 }
             }
         }
+
     }
 }
+
 ```
 
 ---
