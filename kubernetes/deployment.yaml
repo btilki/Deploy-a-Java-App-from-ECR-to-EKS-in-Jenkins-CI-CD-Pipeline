@@ -1,24 +1,24 @@
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: apps/v1              # Specifies the API version for Deployment
+kind: Deployment                 # Resource type is Deployment
 metadata:
-  name: $APP_NAME
+  name: $APP_NAME                # Name of the deployment, set via environment variable
   labels:
-    app: $APP_NAME
+    app: $APP_NAME               # Label to identify the app
 spec:
-  replicas: 2
+  replicas: 2                    # Number of pod replicas to run
   selector:
     matchLabels:
-      app: $APP_NAME
+      app: $APP_NAME             # Pods matching this label are managed by this deployment
   template:
     metadata:
       labels:
-        app: $APP_NAME
+        app: $APP_NAME           # Label applied to each pod
     spec:
       imagePullSecrets:
-        - name: aws-registry-key
+        - name: aws-registry-key # Secret to pull image from private AWS ECR registry
       containers:
-        - name: $APP_NAME
-          image: $DOCKER_REPO:$IMAGE_NAME
-          imagePullPolicy: Always
+        - name: $APP_NAME        # Container name, set via environment variable
+          image: $DOCKER_REPO:$IMAGE_NAME # Docker image and tag to deploy
+          imagePullPolicy: Always # Always pull the image before starting
           ports:
-            - containerPort: 8080
+            - containerPort: 8080 # Container listens on port 8080
