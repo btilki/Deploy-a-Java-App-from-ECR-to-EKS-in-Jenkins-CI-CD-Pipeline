@@ -23,9 +23,6 @@ This project demonstrates a complete CI/CD pipeline for a Java (Spring Boot) app
 
 Defines the CI/CD pipeline:
 
-<details>
-<summary>Click to copy Jenkinsfile snippet</summary>
-
 ```groovy
 pipeline {
     agent any
@@ -81,14 +78,10 @@ pipeline {
     }
 }
 ```
-</details>
 
 ---
 
 ### 3.2. Dockerfile
-
-<details>
-<summary>Click to copy Dockerfile</summary>
 
 ```dockerfile
 FROM amazoncorretto:8-alpine
@@ -97,16 +90,12 @@ COPY target/*.jar app.jar
 EXPOSE 8080
 CMD ["java", "-jar", "app.jar"]
 ```
-</details>
 
 ---
 
 ### 3.4. Kubernetes Manifests
 
 #### deployment.yaml
-
-<details>
-<summary>Click to copy Kubernetes deployment manifest</summary>
 
 ```yaml
 apiVersion: apps/v1
@@ -129,12 +118,8 @@ spec:
         ports:
         - containerPort: 8080
 ```
-</details>
 
 #### service.yaml
-
-<details>
-<summary>Click to copy Kubernetes service manifest</summary>
 
 ```yaml
 apiVersion: v1
@@ -150,7 +135,6 @@ spec:
       port: 80
       targetPort: 8080
 ```
-</details>
 
 ---
 
