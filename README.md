@@ -29,14 +29,14 @@ pipeline {
 
     environment {
         // AWS credentials stored securely in Jenkins credentials store
-        AWS_ACCESS_KEY_ID     = credentials('jenkins_aws_access_key_id')
+        AWS_ACCESS_KEY_ID = credentials('jenkins_aws_access_key_id')
         AWS_SECRET_ACCESS_KEY = credentials('jenkins-aws_secret_access_key')
 
         // Amazon ECR repository URI (replace placeholders with actual values)
-        ECR_REPO              = 'YOUR_AWS_ACCOUNT_ID.dkr.ecr.YOUR_REGION.amazonaws.com/YOUR_ECR_REPO'
+        ECR_REPO = 'YOUR_AWS_ACCOUNT_ID.dkr.ecr.YOUR_REGION.amazonaws.com/YOUR_ECR_REPO'
 
         // File used for versioning (Maven project)
-        VERSION_FILE          = 'pom.xml'
+        VERSION_FILE = 'pom.xml'
     }
 
     stages {
