@@ -168,7 +168,7 @@ spec:
 
 ## 5. Security and Best Practices
 
-- All sensitive credentials (AWS, Docker/ECR, GitLab) are managed securely via Jenkins credentials.
+- All sensitive credentials (AWS, Docker/ECR, GitHub) are managed securely via Jenkins credentials.
 - The pipeline uses dynamic variable injection for image tags and Kubernetes manifests.
 - Amazon Corretto and Alpine Linux are used for a slim and secure runtime.
 
