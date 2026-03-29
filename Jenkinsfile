@@ -102,7 +102,7 @@ pipeline {
                     )]) {
 
                         // Reconfigure Git remote to authenticate with user/pass
-                        sh "git remote set-url origin https://${USER}:${PASS}@gitlab.com/twn-devops-bootcamp/latest/11-eks/java-maven-app.git"
+                        sh "git remote set-url origin https://${USER}:${PASS}@github.com/btilki/Deploy-a-Java-App-from-ECR-to-EKS-in-Jenkins-CI-CD-Pipeline.git"
 
                         // Commit new version number
                         sh 'git add .'
